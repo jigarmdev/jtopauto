@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import CanvasEditor from "./components/CanvasEditor";
+import RightPanel from "./components/RightPanel.jsx";
 
 export default function Page() {
   const [fabricAPI, setFabricAPI] = useState(null);
@@ -28,9 +29,8 @@ export default function Page() {
     if (fabricAPI) {
       fabricAPI.onSelection((obj) => {
         if (obj && obj.type === "textbox") {
-          // Effective font size = original fontSize * scaleX
           const effectiveFontSize = obj.fontSize * obj.scaleX;
-          setFontSize(obj.fontSize); // update sidebar input to selected object
+          setFontSize(obj.fontSize);
           setPrice(calculatePrice(obj.text, effectiveFontSize));
         } else {
           setPrice(0);
@@ -48,7 +48,7 @@ export default function Page() {
         activeObj.set("fontSize", fontSize);
         activeObj.set("scaleX", 1);
         activeObj.set("scaleY", 1);
-        activeObj.setCoords(); // update controls/bounding box
+        activeObj.setCoords();
         canvas.renderAll();
         setPrice(calculatePrice(activeObj.text, fontSize));
       }
@@ -63,50 +63,41 @@ export default function Page() {
       </div>
 
       {/* Sidebar Controls */}
-      <aside className="w-80 bg-white border-l shadow-md p-6 space-y-6">
-        <h2 className="text-lg font-bold text-sky-700">Controls</h2>
-
+      <aside className="w-80 bg-white border-l shadow-md p-6 space-y-6 overflow-y-auto">
+        {/* Existing text controls */}
         <div>
-          <label className="block text-sm font-medium mb-1">Enter Text</label>
+          <h2 className="text-lg font-bold text-sky-700 mb-2">Text Controls</h2>
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="w-full border rounded px-3 py-2 mb-2"
+            placeholder="Enter text..."
           />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Font Size</label>
           <input
             type="number"
             value={fontSize}
             onChange={(e) => setFontSize(parseInt(e.target.value) || 40)}
-            className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="w-full border rounded px-3 py-2 mb-2"
+            placeholder="Font size"
           />
+          <button
+            onClick={handleAddText}
+            className="w-full bg-sky-600 text-white px-4 py-2 rounded mb-2"
+          >
+            Add Text
+          </button>
         </div>
 
-        <button
-          onClick={handleAddText}
-          className="w-full bg-sky-600 text-white px-4 py-2 rounded hover:bg-sky-700"
-        >
-          Add Text
-        </button>
-
-        {/* Delete Text Button */}
-        <button
-          onClick={() => fabricAPI?.deleteActiveObject()}
-          className="w-full bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-        >
-          Delete Selected Text
-        </button>
-
-        {/* Pricing */}
-        <div className="p-4 bg-sky-50 rounded shadow">
+        {/* Price display */}
+        <div className="p-4 bg-sky-50 rounded shadow mb-4">
           <p className="text-sm text-gray-500">Selected Text Price</p>
           <p className="text-xl font-bold text-sky-700">₹ {price}</p>
           <p className="text-xs text-gray-400">(based on text size & length)</p>
         </div>
+
+        {/* RightPanel for AI image + additional controls */}
+        <RightPanel fabricAPI={fabricAPI} />
       </aside>
     </div>
   );
