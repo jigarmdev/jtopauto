@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CanvasEditor from "./components/CanvasEditor";
 
 export default function Page() {
@@ -9,21 +9,56 @@ export default function Page() {
   const [inputText, setInputText] = useState("");
   const [fontSize, setFontSize] = useState(40);
 
-  // Add text via API from CanvasEditor
+  // Pricing formula
+  const calculatePrice = (text, size) => {
+    if (!text) return 0;
+    return (size * text.length * 2).toFixed(2); // ₹2 per fontSize*char
+  };
+
   const handleAddText = () => {
     if (fabricAPI && inputText) {
-      fabricAPI.addText(inputText, fontSize);
-
-      // pricing
-      setPrice((fontSize * inputText.length * 2).toFixed(2));
+      const obj = fabricAPI.addText(inputText, fontSize);
+      setPrice(calculatePrice(inputText, fontSize));
+      fabricAPI.selectObject(obj);
     }
   };
 
+  // Update price whenever object changes (text, fontSize, scaling)
+  useEffect(() => {
+    if (fabricAPI) {
+      fabricAPI.onSelection((obj) => {
+        if (obj && obj.type === "textbox") {
+          // Effective font size = original fontSize * scaleX
+          const effectiveFontSize = obj.fontSize * obj.scaleX;
+          setFontSize(obj.fontSize); // update sidebar input to selected object
+          setPrice(calculatePrice(obj.text, effectiveFontSize));
+        } else {
+          setPrice(0);
+        }
+      });
+    }
+  }, [fabricAPI]);
+
+  // Update selected object's font size on input change
+  useEffect(() => {
+    if (fabricAPI) {
+      const canvas = fabricAPI.getCanvas();
+      const activeObj = canvas.getActiveObject();
+      if (activeObj && activeObj.type === "textbox") {
+        activeObj.set("fontSize", fontSize);
+        activeObj.set("scaleX", 1);
+        activeObj.set("scaleY", 1);
+        activeObj.setCoords(); // update controls/bounding box
+        canvas.renderAll();
+        setPrice(calculatePrice(activeObj.text, fontSize));
+      }
+    }
+  }, [fontSize, fabricAPI]);
+
   return (
-    <div className="flex w-full h-full">
+    <div className="flex w-full h-screen">
       {/* Canvas Area */}
-      <div className="flex-1 flex items-center justify-center">
-        {/* CanvasEditor handles all fabric.js logic */}
+      <div className="flex-1 flex items-center justify-center bg-gray-100">
         <CanvasEditor setFabricAPI={setFabricAPI} />
       </div>
 
@@ -31,7 +66,6 @@ export default function Page() {
       <aside className="w-80 bg-white border-l shadow-md p-6 space-y-6">
         <h2 className="text-lg font-bold text-sky-700">Controls</h2>
 
-        {/* Text Input */}
         <div>
           <label className="block text-sm font-medium mb-1">Enter Text</label>
           <input
@@ -42,7 +76,6 @@ export default function Page() {
           />
         </div>
 
-        {/* Font Size */}
         <div>
           <label className="block text-sm font-medium mb-1">Font Size</label>
           <input
@@ -53,7 +86,6 @@ export default function Page() {
           />
         </div>
 
-        {/* Add Text Button */}
         <button
           onClick={handleAddText}
           className="w-full bg-sky-600 text-white px-4 py-2 rounded hover:bg-sky-700"
@@ -61,9 +93,17 @@ export default function Page() {
           Add Text
         </button>
 
+        {/* Delete Text Button */}
+        <button
+          onClick={() => fabricAPI?.deleteActiveObject()}
+          className="w-full bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+        >
+          Delete Selected Text
+        </button>
+
         {/* Pricing */}
         <div className="p-4 bg-sky-50 rounded shadow">
-          <p className="text-sm text-gray-500">Pricing</p>
+          <p className="text-sm text-gray-500">Selected Text Price</p>
           <p className="text-xl font-bold text-sky-700">₹ {price}</p>
           <p className="text-xs text-gray-400">(based on text size & length)</p>
         </div>
