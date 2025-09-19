@@ -1,0 +1,5 @@
+<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="400" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="2"/>
+  <circle cx="200" cy="200" r="50" fill="#0ea5e9" opacity="0.3"/>
+  <text x="200" y="320" text-anchor="middle" font-family="Arial" font-size="16" fill="#0c4a6e">Sample Template</text>
+</svg>
