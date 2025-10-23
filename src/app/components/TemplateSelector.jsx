@@ -22,10 +22,27 @@ export default function TemplateSelector({ fabricAPI }) {
   }, []);
 
   const loadSVGTemplate = (template) => {
-    if (!fabricAPI) return;
+    if (!fabricAPI) {
+      console.error('fabricAPI not available');
+      return;
+    }
     
-    console.log('Loading SVG template:', template.path);
-    fabricAPI.loadSVG(template.path);
+    const fullUrl = `${window.location.origin}${template.path}`;
+    console.log('Loading SVG template:', template, 'Full URL:', fullUrl);
+    
+    // Test if URL is accessible
+    fetch(fullUrl)
+      .then(response => {
+        console.log('SVG fetch response:', response.status, response.statusText);
+        if (response.ok) {
+          fabricAPI.loadSVG(fullUrl);
+        } else {
+          console.error('SVG not accessible:', response.status);
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching SVG:', error);
+      });
   };
 
   return (

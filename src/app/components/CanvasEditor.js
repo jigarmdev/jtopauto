@@ -18,6 +18,7 @@ export default function CanvasEditor({ setFabricAPI }) {
     fabricCanvas.current.setHeight(2048);
     fabricCanvas.current.renderAll();
 
+
     // Selection callback
     let selectionCallback = () => {};
     fabricCanvas.current.on("selection:created", (e) =>
@@ -75,29 +76,24 @@ export default function CanvasEditor({ setFabricAPI }) {
         fabricCanvas.current.renderAll();
         return newText;
       },
-      loadSVG: (svgPath) => {
-        fabric.loadSVGFromURL(svgPath, (objects, options) => {
-          const svgGroup = fabric.util.groupSVGElements(objects, options);
+      loadSVG: (svgUrl) => {
+        fabric.loadSVGFromURL(svgUrl).then((result) => {
+          const { objects, options } = result;
+          if (!objects || objects.length === 0) return;
           
-          // Scale to fit canvas
-          const canvasWidth = fabricCanvas.current.width;
-          const canvasHeight = fabricCanvas.current.height;
-          const scaleX = canvasWidth / svgGroup.width;
-          const scaleY = canvasHeight / svgGroup.height;
-          const scale = Math.min(scaleX, scaleY);
+          const svgGroup = new fabric.Group(objects, options);
+          
+          const scaleX = 2048 / svgGroup.width;
+          const scaleY = 2048 / svgGroup.height;
           
           svgGroup.set({
             left: 0,
             top: 0,
-            scaleX: scale,
-            scaleY: scale,
+            scaleX: scaleX,
+            scaleY: scaleY,
             selectable: false,
-            evented: false,
-            lockMovementX: true,
-            lockMovementY: true,
-            lockRotation: true,
-            lockScalingX: true,
-            lockScalingY: true
+            lockMovementX: false,
+            lockMovementY: false
           });
           
           fabricCanvas.current.add(svgGroup);

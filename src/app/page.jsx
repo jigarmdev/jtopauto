@@ -15,7 +15,7 @@ export default function Page() {
   const [fontSize, setFontSize] = useState(40);
   const [isMobilePanelOpen, setIsMobilePanelOpen] = useState(false);
   const [selectedUV, setSelectedUV] = useState(null);
-  const [selectedModel, setSelectedModel] = useState("sample.glb");
+  const [selectedModel, setSelectedModel] = useState("women sports.glb");
   const [activePanel, setActivePanel] = useState(null);
 
   // Pricing formula
