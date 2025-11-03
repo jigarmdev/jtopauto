@@ -255,7 +255,7 @@ export default function Page() {
     <>
       <div className="flex h-full w-full pb-20 overflow-hidden">
         {/* Canvas Section */}
-        <div className="flex-1 flex items-center justify-center bg-gray-200 relative">
+        <div className="flex-1 flex items-center justify-center bg-gray-200 relative" style={{ display: 'flex', flexWrap: 'wrap' }}>
           
           {/* Three.js Canvas (visible) */}
           <ThreeCanvas 
@@ -266,7 +266,7 @@ export default function Page() {
           />
 
           {/* Fabric.js Canvas (hidden but active for texture) */}
-          <div className="absolute top-0 left-0 opacity-0 pointer-events-none">
+          <div className="opacity-0 pointer-events-none">
             <CanvasEditor setFabricAPI={setFabricAPI} />
           </div>
 

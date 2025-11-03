@@ -103,7 +103,38 @@ export default function ThreeCanvas({ fabricAPI, onUVSelect, selectedUV, modelFi
     controls.enableDamping = true;
     controlsRef.current = controls;
     
-    // Listen for fabric selection changes
+    // Position calculation functions
+    const getMousePosition = (dom, x, y) => {
+      const rect = dom.getBoundingClientRect();
+      return [(x - rect.left) / rect.width, (y - rect.top) / rect.height];
+    };
+    
+    const getIntersects = (point, objects) => {
+      mouse.current.set(point.x * 2 - 1, -(point.y * 2) + 1);
+      raycaster.current.setFromCamera(mouse.current, camera);
+      return raycaster.current.intersectObjects(objects);
+    };
+    
+    const getRealPosition = (axis, value) => {
+      let CORRECTION_VALUE = axis === "x" ? 4.5 : 5.5;
+      return Math.round(value * 2048) - CORRECTION_VALUE;
+    };
+    
+    const getPositionOnScene = (sceneContainer, evt) => {
+      const array = getMousePosition(renderer.domElement, evt.clientX, evt.clientY);
+      const onClickPosition = new THREE.Vector2().fromArray(array);
+      const intersects = getIntersects(onClickPosition, scene.children);
+      if (intersects.length > 0 && intersects[0].uv) {
+        const uv = intersects[0].uv;
+        return {
+          x: getRealPosition('x', uv.x),
+          y: getRealPosition('y', uv.y)
+        };
+      }
+      return null;
+    };
+
+    // Listen for fabric selection changes and set position function
     if (fabricAPI) {
       fabricAPI.onSelection((obj) => {
         if (obj) {
@@ -112,6 +143,9 @@ export default function ThreeCanvas({ fabricAPI, onUVSelect, selectedUV, modelFi
           controls.enabled = true; // Enable 3D controls when nothing selected
         }
       });
+      
+      // Set the position function for fabric integration
+      fabricAPI.setPositionFunction(getPositionOnScene);
     }
 
     // Lighting
@@ -145,6 +179,54 @@ export default function ThreeCanvas({ fabricAPI, onUVSelect, selectedUV, modelFi
       }
     };
 
+    // Mouse event handler for fabric integration
+    const onMouseEvt = (evt) => {
+      evt.preventDefault();
+      
+      if (evt.type === 'click') {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.current.x = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.current.y = -((evt.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        raycaster.current.setFromCamera(mouse.current, camera);
+        
+        if (modelRef.current && fabricAPI) {
+          const intersects = raycaster.current.intersectObject(modelRef.current, true);
+          const canvas = fabricAPI.getCanvas();
+          
+          if (intersects.length > 0) {
+            const uv = intersects[0].uv;
+            if (uv) {
+              const fabricX = uv.x * canvas.width;
+              const fabricY = uv.y * canvas.height;
+              
+              // Check if clicking on existing text object
+              const clickedObjects = canvas.getObjects().filter(obj => {
+                if (obj.type !== 'textbox') return false;
+                const objBounds = obj.getBoundingRect();
+                return fabricX >= objBounds.left && fabricX <= objBounds.left + objBounds.width &&
+                       fabricY >= objBounds.top && fabricY <= objBounds.top + objBounds.height;
+              });
+              
+              if (clickedObjects.length > 0) {
+                // Select the clicked text object
+                canvas.setActiveObject(clickedObjects[0]);
+                canvas.renderAll();
+              } else {
+                // Store UV coordinates for new object placement
+                onUVSelect({ x: fabricX, y: fabricY });
+              }
+            }
+          } else {
+            // Clicked outside model - deselect all fabric objects
+            canvas.discardActiveObject();
+            canvas.renderAll();
+            controlsRef.current.enabled = true;
+          }
+        }
+      }
+    };
+    
     // Mouse tracking and object movement
     const onMouseMove = (event) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -160,7 +242,7 @@ export default function ThreeCanvas({ fabricAPI, onUVSelect, selectedUV, modelFi
           if (uv) {
             const canvas = fabricAPI.getCanvas();
             const fabricX = uv.x * canvas.width;
-            const fabricY = (1 - uv.y) * canvas.height;
+            const fabricY = uv.y * canvas.height;
             
             // Move selected fabric object if dragging
             const activeObj = canvas.getActiveObject();
@@ -200,54 +282,10 @@ export default function ThreeCanvas({ fabricAPI, onUVSelect, selectedUV, modelFi
       }
     };
     
+    renderer.domElement.addEventListener('click', onMouseEvt);
     renderer.domElement.addEventListener('mousemove', onMouseMove);
     renderer.domElement.addEventListener('mousedown', onMouseDown);
     renderer.domElement.addEventListener('mouseup', onMouseUp);
-    
-    // Click to select UV position or deselect objects
-    const onClick = (event) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      
-      raycaster.current.setFromCamera(mouse.current, camera);
-      
-      if (modelRef.current && fabricAPI) {
-        const intersects = raycaster.current.intersectObject(modelRef.current, true);
-        const canvas = fabricAPI.getCanvas();
-        
-        if (intersects.length > 0) {
-          const uv = intersects[0].uv;
-          if (uv) {
-            const fabricX = uv.x * canvas.width;
-            const fabricY = (1 - uv.y) * canvas.height;
-            
-            // Check if clicking on existing object or empty space
-            const clickedObjects = canvas.getObjects().filter(obj => {
-              const objBounds = obj.getBoundingRect();
-              return fabricX >= objBounds.left && fabricX <= objBounds.left + objBounds.width &&
-                     fabricY >= objBounds.top && fabricY <= objBounds.top + objBounds.height;
-            });
-            
-            if (clickedObjects.length > 0) {
-              // Select the clicked object
-              canvas.setActiveObject(clickedObjects[0]);
-              canvas.renderAll();
-            } else {
-              // Store UV coordinates for new object placement
-              onUVSelect({ x: fabricX, y: fabricY });
-            }
-          }
-        } else {
-          // Clicked outside model - deselect all fabric objects
-          canvas.discardActiveObject();
-          canvas.renderAll();
-          controlsRef.current.enabled = true;
-        }
-      }
-    };
-    
-    renderer.domElement.addEventListener('click', onClick);
 
     // Load model based on file extension
     const loadModel = (filename) => {
@@ -345,10 +383,10 @@ export default function ThreeCanvas({ fabricAPI, onUVSelect, selectedUV, modelFi
 
     return () => {
       if (renderer.domElement && mountRef.current) {
+        renderer.domElement.removeEventListener('click', onMouseEvt);
         renderer.domElement.removeEventListener('mousemove', onMouseMove);
         renderer.domElement.removeEventListener('mousedown', onMouseDown);
         renderer.domElement.removeEventListener('mouseup', onMouseUp);
-        renderer.domElement.removeEventListener('click', onClick);
         clearInterval(textureUpdateInterval);
         mountRef.current.removeChild(renderer.domElement);
         renderer.dispose();

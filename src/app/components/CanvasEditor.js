@@ -12,6 +12,12 @@ export default function CanvasEditor({ setFabricAPI }) {
       backgroundColor: "#f0f9ff", // green background
       selection: true,
     });
+    
+    // Make canvas transparent to mouse events and prevent focus
+    fabricCanvas.current.upperCanvasEl.style.pointerEvents = 'none';
+    fabricCanvas.current.lowerCanvasEl.style.pointerEvents = 'none';
+    fabricCanvas.current.upperCanvasEl.tabIndex = -1;
+    fabricCanvas.current.lowerCanvasEl.tabIndex = -1;
 
     // Set fixed high-resolution canvas size
     fabricCanvas.current.setWidth(2048);
@@ -19,17 +25,25 @@ export default function CanvasEditor({ setFabricAPI }) {
     fabricCanvas.current.renderAll();
 
 
-    // Selection callback
+
+
+
+
+    // Selection callback with pointer events management
     let selectionCallback = () => {};
-    fabricCanvas.current.on("selection:created", (e) =>
-      selectionCallback(e.selected[0])
-    );
-    fabricCanvas.current.on("selection:updated", (e) =>
-      selectionCallback(e.selected[0])
-    );
-    fabricCanvas.current.on("selection:cleared", () =>
-      selectionCallback(null)
-    );
+    fabricCanvas.current.on("selection:created", (e) => {
+      fabricCanvas.current.upperCanvasEl.style.pointerEvents = 'auto';
+      fabricCanvas.current.lowerCanvasEl.style.pointerEvents = 'auto';
+      selectionCallback(e.selected[0]);
+    });
+    fabricCanvas.current.on("selection:updated", (e) => {
+      selectionCallback(e.selected[0]);
+    });
+    fabricCanvas.current.on("selection:cleared", () => {
+      fabricCanvas.current.upperCanvasEl.style.pointerEvents = 'none';
+      fabricCanvas.current.lowerCanvasEl.style.pointerEvents = 'none';
+      selectionCallback(null);
+    });
 
     // Scaling + font update
     fabricCanvas.current.on("object:scaling", (e) => {
@@ -77,9 +91,30 @@ export default function CanvasEditor({ setFabricAPI }) {
         return newText;
       },
       loadSVG: (svgUrl) => {
+        // Remove existing SVG groups
+        const existingSVGs = fabricCanvas.current.getObjects().filter(obj => 
+          obj.type === 'group' && !obj.selectable
+        );
+        existingSVGs.forEach(svg => fabricCanvas.current.remove(svg));
+        
         fabric.loadSVGFromURL(svgUrl).then((result) => {
           const { objects, options } = result;
           if (!objects || objects.length === 0) return;
+          
+          // Make all objects completely non-interactive
+          objects.forEach(obj => {
+            obj.set({
+              selectable: false,
+              evented: false,
+              hasControls: false,
+              hasBorders: false,
+              lockMovementX: true,
+              lockMovementY: true,
+              lockRotation: true,
+              lockScalingX: true,
+              lockScalingY: true
+            });
+          });
           
           const svgGroup = new fabric.Group(objects, options);
           
@@ -92,11 +127,18 @@ export default function CanvasEditor({ setFabricAPI }) {
             scaleX: scaleX,
             scaleY: scaleY,
             selectable: false,
-            lockMovementX: false,
-            lockMovementY: false
+            evented: false,
+            hasControls: false,
+            hasBorders: false,
+            lockMovementX: true,
+            lockMovementY: true,
+            lockRotation: true,
+            lockScalingX: true,
+            lockScalingY: true
           });
           
           fabricCanvas.current.add(svgGroup);
+          fabricCanvas.current.sendObjectToBack(svgGroup);
           fabricCanvas.current.renderAll();
         });
       },
@@ -117,6 +159,17 @@ export default function CanvasEditor({ setFabricAPI }) {
         selectionCallback = cb;
       },
       getCanvas: () => fabricCanvas.current,
+      setPositionFunction: (positionFn) => {
+        window.getPositionOnScene = positionFn;
+      },
+      enablePointerEvents: () => {
+        fabricCanvas.current.upperCanvasEl.style.pointerEvents = 'auto';
+        fabricCanvas.current.lowerCanvasEl.style.pointerEvents = 'auto';
+      },
+      disablePointerEvents: () => {
+        fabricCanvas.current.upperCanvasEl.style.pointerEvents = 'none';
+        fabricCanvas.current.lowerCanvasEl.style.pointerEvents = 'none';
+      },
     });
 
     return () => {
@@ -130,8 +183,13 @@ export default function CanvasEditor({ setFabricAPI }) {
       ref={canvasRef}
       width={2048}
       height={2048}
+      tabIndex={-1}
       className="border shadow-lg rounded"
-      style={{ width: '400px', height: '400px' }}
+      style={{ 
+        width: '400px', 
+        height: '400px',
+        pointerEvents: 'none'
+      }}
     />
   );
 }
