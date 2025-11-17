@@ -84,6 +84,8 @@ export default function CanvasEditor({ setFabricAPI }) {
           fontSize: fontSize * 2, // Scale for high-res canvas
           fontFamily: "Times New Roman",
           fill: "#0c4a6e",
+          originX: 'center',
+          originY: 'center'
         });
         fabricCanvas.current.add(newText);
         fabricCanvas.current.setActiveObject(newText);
